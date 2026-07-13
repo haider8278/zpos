@@ -1,5 +1,3 @@
-.devswarm-temp/
-
 node_modules
 dist
 .next
@@ -7,8 +5,4 @@ out
 coverage
 *.log
 .turbo
-.env
-.env.local
-.env.*.local
 pnpm-lock.yaml
-drizzle
