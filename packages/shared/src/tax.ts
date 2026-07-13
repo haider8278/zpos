@@ -5,6 +5,7 @@ export interface TaxCalculationResult {
   totalDiscount: number;
   taxableAmount: number;
   totalTax: number;
+  furtherTax: number;
   posFee: number;
   total: number;
   items: Array<{
@@ -21,7 +22,9 @@ export interface TaxCalculationResult {
 export function calculateInvoiceTotals(
   items: CartItem[],
   cartDiscount: number,
-  posFeeAmount: number = 100
+  posFeeAmount: number = 100,
+  hasValidBuyerRegistration: boolean = false,
+  furtherTaxRate: number = 300
 ): TaxCalculationResult {
   let subtotal = 0;
   let totalLineDiscount = 0;
@@ -68,13 +71,19 @@ export function calculateInvoiceTotals(
 
   const totalTax = itemsWithAllocatedDiscount.reduce((sum, item) => sum + item.taxAmount, 0);
   const taxableAmount = subtotal - totalDiscount;
-  const total = taxableAmount + totalTax + posFeeAmount;
+  
+  const furtherTax = !hasValidBuyerRegistration && taxableAmount > 0
+    ? Math.floor((taxableAmount * furtherTaxRate) / 10000)
+    : 0;
+  
+  const total = taxableAmount + totalTax + furtherTax + posFeeAmount;
 
   return {
     subtotal,
     totalDiscount,
     taxableAmount,
     totalTax,
+    furtherTax,
     posFee: posFeeAmount,
     total,
     items: itemsWithAllocatedDiscount,
