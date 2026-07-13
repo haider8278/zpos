@@ -12,7 +12,7 @@
     "build:next": "next build",
     "build:electron": "tsc --project tsconfig.main.json",
     "start": "electron .",
-    "test": "vitest",
+    "test": "vitest run --passWithNoTests",
     "lint": "next lint",
     "type-check": "tsc --noEmit && tsc --project tsconfig.main.json --noEmit",
     "clean": "rm -rf .next dist out"
