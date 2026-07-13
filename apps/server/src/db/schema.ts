@@ -14,6 +14,23 @@ export const permissionEnum = pgEnum('permission', [
   'VIEW_REPORTS',
 ]);
 
+export const taxCategoryEnum = pgEnum('tax_category', ['STANDARD', 'REDUCED', 'ZERO_RATED', 'EXEMPT']);
+export const stockMovementTypeEnum = pgEnum('stock_movement_type', [
+  'PURCHASE',
+  'SALE',
+  'RETURN',
+  'ADJUSTMENT',
+  'TRANSFER_OUT',
+  'TRANSFER_IN',
+]);
+export const transferStatusEnum = pgEnum('transfer_status', [
+  'DRAFT',
+  'PENDING',
+  'IN_TRANSIT',
+  'RECEIVED',
+  'CANCELLED',
+]);
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   username: varchar('username', { length: 100 }).unique().notNull(),
@@ -142,5 +159,152 @@ export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
   user: one(users, {
     fields: [refreshTokens.userId],
     references: [users.id],
+  }),
+}));
+
+// Phase 2: Catalog and Inventory tables
+
+export const taxCategories = pgTable('tax_categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  category: taxCategoryEnum('category').unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  defaultRate: integer('default_rate').notNull(),
+  effectiveFrom: timestamp('effective_from').notNull(),
+  effectiveTo: timestamp('effective_to'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const products = pgTable('products', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  brand: varchar('brand', { length: 255 }),
+  category: varchar('category', { length: 255 }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const productVariants = pgTable('product_variants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  productId: uuid('product_id').references(() => products.id).notNull(),
+  sku: varchar('sku', { length: 100 }).unique().notNull(),
+  barcode: varchar('barcode', { length: 100 }).unique(),
+  itemName: varchar('item_name', { length: 255 }).notNull(),
+  size: varchar('size', { length: 50 }),
+  color: varchar('color', { length: 50 }),
+  competitorSku: varchar('competitor_sku', { length: 100 }),
+  pctCode: varchar('pct_code', { length: 50 }),
+  taxCategoryId: uuid('tax_category_id').references(() => taxCategories.id).notNull(),
+  unitPrice: integer('unit_price').notNull(),
+  costPrice: integer('cost_price'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const stockLedger = pgTable('stock_ledger', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  variantId: uuid('variant_id').references(() => productVariants.id).notNull(),
+  storeId: uuid('store_id').references(() => stores.id).notNull(),
+  movementType: stockMovementTypeEnum('movement_type').notNull(),
+  quantity: integer('quantity').notNull(),
+  referenceType: varchar('reference_type', { length: 50 }),
+  referenceId: uuid('reference_id'),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const stockTransfers = pgTable('stock_transfers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  transferNumber: varchar('transfer_number', { length: 100 }).unique().notNull(),
+  fromStoreId: uuid('from_store_id').references(() => stores.id).notNull(),
+  toStoreId: uuid('to_store_id').references(() => stores.id).notNull(),
+  status: transferStatusEnum('status').notNull().default('DRAFT'),
+  requestedBy: uuid('requested_by').references(() => users.id).notNull(),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  receivedBy: uuid('received_by').references(() => users.id),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  approvedAt: timestamp('approved_at'),
+  receivedAt: timestamp('received_at'),
+});
+
+export const stockTransferItems = pgTable('stock_transfer_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  transferId: uuid('transfer_id').references(() => stockTransfers.id).notNull(),
+  variantId: uuid('variant_id').references(() => productVariants.id).notNull(),
+  requestedQuantity: integer('requested_quantity').notNull(),
+  transferredQuantity: integer('transferred_quantity'),
+  receivedQuantity: integer('received_quantity'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const taxCategoriesRelations = relations(taxCategories, ({ many }) => ({
+  variants: many(productVariants),
+}));
+
+export const productsRelations = relations(products, ({ many }) => ({
+  variants: many(productVariants),
+}));
+
+export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
+  product: one(products, {
+    fields: [productVariants.productId],
+    references: [products.id],
+  }),
+  taxCategory: one(taxCategories, {
+    fields: [productVariants.taxCategoryId],
+    references: [taxCategories.id],
+  }),
+  stockMovements: many(stockLedger),
+  transferItems: many(stockTransferItems),
+}));
+
+export const stockLedgerRelations = relations(stockLedger, ({ one }) => ({
+  variant: one(productVariants, {
+    fields: [stockLedger.variantId],
+    references: [productVariants.id],
+  }),
+  store: one(stores, {
+    fields: [stockLedger.storeId],
+    references: [stores.id],
+  }),
+  user: one(users, {
+    fields: [stockLedger.userId],
+    references: [users.id],
+  }),
+}));
+
+export const stockTransfersRelations = relations(stockTransfers, ({ one, many }) => ({
+  fromStore: one(stores, {
+    fields: [stockTransfers.fromStoreId],
+    references: [stores.id],
+  }),
+  toStore: one(stores, {
+    fields: [stockTransfers.toStoreId],
+    references: [stores.id],
+  }),
+  requestedByUser: one(users, {
+    fields: [stockTransfers.requestedBy],
+    references: [users.id],
+  }),
+  items: many(stockTransferItems),
+}));
+
+export const stockTransferItemsRelations = relations(stockTransferItems, ({ one }) => ({
+  transfer: one(stockTransfers, {
+    fields: [stockTransferItems.transferId],
+    references: [stockTransfers.id],
+  }),
+  variant: one(productVariants, {
+    fields: [stockTransferItems.variantId],
+    references: [productVariants.id],
   }),
 }));
