@@ -1,0 +1,41 @@
+{
+  "name": "@zpos/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZPOS Electron Desktop Application",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:next\" \"npm run dev:electron\"",
+    "dev:next": "next dev",
+    "dev:electron": "tsx watch --tsconfig tsconfig.main.json src/main/index.ts",
+    "build": "npm run build:next && npm run build:electron",
+    "build:next": "next build",
+    "build:electron": "tsc --project tsconfig.main.json",
+    "start": "electron .",
+    "test": "vitest run --passWithNoTests",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit && tsc --project tsconfig.main.json --noEmit",
+    "clean": "rm -rf .next dist out"
+  },
+  "dependencies": {
+    "@zpos/shared": "workspace:*",
+    "electron-store": "^8.1.0",
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sql.js": "^1.10.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "concurrently": "^8.2.2",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.1.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
