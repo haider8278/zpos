@@ -89,3 +89,11 @@ export function validatePayments(payments: Payment[], totalAmount: number): bool
 export function generateUSIN(storeCode: string, terminalCode: string, sequence: number): string {
   return `${storeCode}-${terminalCode}-${sequence.toString().padStart(8, '0')}`;
 }
+
+export function generateInvoiceNumber(storeCode: string, terminalCode: string, sequence: number): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `INV-${storeCode}-${terminalCode}-${year}${month}${day}-${sequence.toString().padStart(6, '0')}`;
+}

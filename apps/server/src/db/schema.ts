@@ -31,6 +31,25 @@ export const transferStatusEnum = pgEnum('transfer_status', [
   'CANCELLED',
 ]);
 
+export const invoiceStatusEnum = pgEnum('invoice_status', [
+  'DRAFT',
+  'COMPLETED',
+  'PENDING_SYNC',
+  'SYNCED',
+  'SYNC_FAILED',
+  'VOIDED',
+  'RETURNED',
+  'PARTIALLY_RETURNED',
+]);
+
+export const paymentModeEnum = pgEnum('payment_mode', [
+  'CASH',
+  'CARD',
+  'EASYPAYSA',
+  'JAZZCASH',
+  'BANK_TRANSFER',
+]);
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   username: varchar('username', { length: 100 }).unique().notNull(),
@@ -306,5 +325,94 @@ export const stockTransferItemsRelations = relations(stockTransferItems, ({ one 
   variant: one(productVariants, {
     fields: [stockTransferItems.variantId],
     references: [productVariants.id],
+  }),
+}));
+
+// Phase 3: Sales and Checkout tables
+
+export const invoices = pgTable('invoices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  invoiceNumber: varchar('invoice_number', { length: 100 }).unique().notNull(),
+  usin: varchar('usin', { length: 100 }).unique().notNull(),
+  storeId: uuid('store_id').references(() => stores.id).notNull(),
+  terminalId: uuid('terminal_id').references(() => terminals.id).notNull(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  status: invoiceStatusEnum('status').notNull().default('DRAFT'),
+  subtotal: integer('subtotal').notNull(),
+  totalDiscount: integer('total_discount').notNull().default(0),
+  taxableAmount: integer('taxable_amount').notNull(),
+  totalTax: integer('total_tax').notNull(),
+  posFee: integer('pos_fee').notNull().default(0),
+  total: integer('total').notNull(),
+  buyerNtn: varchar('buyer_ntn', { length: 50 }),
+  buyerStrn: varchar('buyer_strn', { length: 50 }),
+  fbrInvoiceNumber: varchar('fbr_invoice_number', { length: 100 }),
+  fbrResponse: jsonb('fbr_response'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+  syncedAt: timestamp('synced_at'),
+});
+
+export const invoiceItems = pgTable('invoice_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  invoiceId: uuid('invoice_id').references(() => invoices.id).notNull(),
+  variantId: uuid('variant_id').references(() => productVariants.id).notNull(),
+  sku: varchar('sku', { length: 100 }).notNull(),
+  itemName: varchar('item_name', { length: 255 }).notNull(),
+  pctCode: varchar('pct_code', { length: 50 }),
+  quantity: integer('quantity').notNull(),
+  unitPrice: integer('unit_price').notNull(),
+  lineDiscount: integer('line_discount').notNull().default(0),
+  allocatedCartDiscount: integer('allocated_cart_discount').notNull().default(0),
+  taxRate: integer('tax_rate').notNull(),
+  taxAmount: integer('tax_amount').notNull(),
+  lineTotal: integer('line_total').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const payments = pgTable('payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  invoiceId: uuid('invoice_id').references(() => invoices.id).notNull(),
+  paymentMode: paymentModeEnum('payment_mode').notNull(),
+  amount: integer('amount').notNull(),
+  reference: varchar('reference', { length: 255 }),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [invoices.storeId],
+    references: [stores.id],
+  }),
+  terminal: one(terminals, {
+    fields: [invoices.terminalId],
+    references: [terminals.id],
+  }),
+  user: one(users, {
+    fields: [invoices.userId],
+    references: [users.id],
+  }),
+  items: many(invoiceItems),
+  payments: many(payments),
+}));
+
+export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
+  }),
+  variant: one(productVariants, {
+    fields: [invoiceItems.variantId],
+    references: [productVariants.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [payments.invoiceId],
+    references: [invoices.id],
   }),
 }));
