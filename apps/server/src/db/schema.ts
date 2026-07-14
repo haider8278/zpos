@@ -14,6 +14,19 @@ export const permissionEnum = pgEnum('permission', [
   'VIEW_REPORTS',
 ]);
 
+export const invoiceTypeEnum = pgEnum('invoice_type', [
+  'SALE',
+  'DEBIT_NOTE',
+  'CREDIT_NOTE',
+]);
+
+export const fbrSyncStatusEnum = pgEnum('fbr_sync_status', [
+  'PENDING',
+  'SUCCESS',
+  'FAILED',
+  'RETRYING',
+]);
+
 export const taxCategoryEnum = pgEnum('tax_category', ['STANDARD', 'REDUCED', 'ZERO_RATED', 'EXEMPT']);
 export const stockMovementTypeEnum = pgEnum('stock_movement_type', [
   'PURCHASE',
@@ -121,6 +134,22 @@ export const auditLogs = pgTable('audit_logs', {
   metadata: jsonb('metadata'),
   ipAddress: varchar('ip_address', { length: 45 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Phase 4: FBR Integration
+export const fbrSubmissions = pgTable('fbr_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  invoiceId: uuid('invoice_id').references(() => invoices.id).notNull(),
+  invoiceType: invoiceTypeEnum('invoice_type').notNull().default('SALE'),
+  status: fbrSyncStatusEnum('status').notNull().default('PENDING'),
+  requestPayload: jsonb('request_payload').notNull(),
+  responsePayload: jsonb('response_payload'),
+  fbrInvoiceNumber: varchar('fbr_invoice_number', { length: 100 }),
+  errorMessage: text('error_message'),
+  retryCount: integer('retry_count').notNull().default(0),
+  lastRetryAt: timestamp('last_retry_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  syncedAt: timestamp('synced_at'),
 });
 
 export const refreshTokens = pgTable('refresh_tokens', {
@@ -337,16 +366,23 @@ export const invoices = pgTable('invoices', {
   storeId: uuid('store_id').references(() => stores.id).notNull(),
   terminalId: uuid('terminal_id').references(() => terminals.id).notNull(),
   userId: uuid('user_id').references(() => users.id).notNull(),
+  invoiceType: invoiceTypeEnum('invoice_type').notNull().default('SALE'),
+  originalInvoiceId: uuid('original_invoice_id').references((): any => invoices.id),
   status: invoiceStatusEnum('status').notNull().default('DRAFT'),
   subtotal: integer('subtotal').notNull(),
   totalDiscount: integer('total_discount').notNull().default(0),
   taxableAmount: integer('taxable_amount').notNull(),
   totalTax: integer('total_tax').notNull(),
+  furtherTax: integer('further_tax').notNull().default(0),
   posFee: integer('pos_fee').notNull().default(0),
   total: integer('total').notNull(),
   buyerNtn: varchar('buyer_ntn', { length: 50 }),
   buyerStrn: varchar('buyer_strn', { length: 50 }),
+  buyerName: varchar('buyer_name', { length: 255 }),
+  buyerCnic: varchar('buyer_cnic', { length: 20 }),
+  buyerPhoneNumber: varchar('buyer_phone_number', { length: 20 }),
   fbrInvoiceNumber: varchar('fbr_invoice_number', { length: 100 }),
+  fbrQrCode: text('fbr_qr_code'),
   fbrResponse: jsonb('fbr_response'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -413,6 +449,13 @@ export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
 export const paymentsRelations = relations(payments, ({ one }) => ({
   invoice: one(invoices, {
     fields: [payments.invoiceId],
+    references: [invoices.id],
+  }),
+}));
+
+export const fbrSubmissionsRelations = relations(fbrSubmissions, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [fbrSubmissions.invoiceId],
     references: [invoices.id],
   }),
 }));
