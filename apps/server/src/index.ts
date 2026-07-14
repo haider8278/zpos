@@ -5,6 +5,9 @@ import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import { config } from './config';
 import { authRoutes } from './routes/auth.routes';
+import { productRoutes } from './routes/product.routes';
+import { inventoryRoutes } from './routes/inventory.routes';
+import { transferRoutes } from './routes/transfer.routes';
 
 const fastify = Fastify({
   logger: {
@@ -31,6 +34,9 @@ async function start() {
     });
 
     await fastify.register(authRoutes, { prefix: '/api/auth' });
+    await fastify.register(productRoutes, { prefix: '/api' });
+    await fastify.register(inventoryRoutes, { prefix: '/api' });
+    await fastify.register(transferRoutes, { prefix: '/api' });
 
     await fastify.listen({
       port: config.port,
