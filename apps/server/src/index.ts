@@ -8,6 +8,7 @@ import { authRoutes } from './routes/auth.routes';
 import { productRoutes } from './routes/product.routes';
 import { inventoryRoutes } from './routes/inventory.routes';
 import { transferRoutes } from './routes/transfer.routes';
+import { invoiceRoutes } from './routes/invoice.routes';
 
 const fastify = Fastify({
   logger: {
@@ -37,6 +38,7 @@ async function start() {
     await fastify.register(productRoutes, { prefix: '/api' });
     await fastify.register(inventoryRoutes, { prefix: '/api' });
     await fastify.register(transferRoutes, { prefix: '/api' });
+    await fastify.register(invoiceRoutes, { prefix: '/api' });
 
     await fastify.listen({
       port: config.port,
